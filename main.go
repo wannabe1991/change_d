@@ -42,6 +42,14 @@ func main() {
 func hertzserver(ch chan string) {
 	h := server.Default(server.WithHostPorts("127.0.0.1:8080"), server.WithMaxRequestBodySize(20<<20))
 
+	h.LoadHTMLGlob("views/*")
+
+	h.Static("/", "./")
+
+	h.GET("/", func(c context.Context, ctx *app.RequestContext) {
+		ctx.HTML(200, "index.html", nil)
+	})
+
 	h.POST("/singleFile", func(ctx context.Context, c *app.RequestContext) {
 		// single file
 		file, _ := c.FormFile("file")
