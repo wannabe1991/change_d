@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -85,9 +86,9 @@ func hertzserver(ch chan string) {
 			// Upload the file to specific dst.
 			c.SaveUploadedFile(file, path+"/clothes")
 		}
-		//TODO:添加scp逻辑
 		ch <- tm
-		c.String(consts.StatusOK, fmt.Sprintf("%d files uploaded!", len(humanfiles)+len(clothesfiles)))
+		c.String(consts.StatusOK, "yumeng")
+		//正式使用的时候这个地方要把 "yumeng" 换成 tm
 	})
 
 	//h.GET("/result", func(ctx context.Context, c *app.RequestContext) {
@@ -96,7 +97,16 @@ func hertzserver(ch chan string) {
 	//	c.FileAttachment("./file/download/yumeng", fileName)
 	//})
 	h.GET("/result", func(ctx context.Context, c *app.RequestContext) {
-		c.File("./file/download/yumeng")
+		location := c.Query("location")
+		//c.String(consts.StatusOK, location)
+		resultfile := "./file/download/" + location
+		_, err := os.Stat(resultfile)
+		if err == nil {
+			c.File(resultfile)
+		}
+		if os.IsNotExist(err) {
+			c.String(consts.StatusUnauthorized, "retrylater")
+		}
 	})
 
 	h.Spin()
@@ -109,6 +119,12 @@ func transfile(ch chan string) {
 	go func() {
 		for {
 			path = <-ch
+			cmd := exec.Command("scp", "-r", "./file/"+path, "root@xxxxxxx/xxxxx")
+			err := cmd.Run()
+			if err != nil {
+				fmt.Println("failed to run cmd %v", err)
+			}
+			//调用scp 脚本
 			fmt.Println(path)
 		}
 	}()
@@ -148,7 +164,12 @@ func getfile() {
 			}
 			if os.IsNotExist(err) {
 				fmt.Println("find no result in path:" + path.Name())
-				//尝试去远端拷贝文件
+				//调用远方拷贝到本地的scp脚本
+				cmd := exec.Command("scp", "root@xxxxxxx/xxxxx"+path.Name()+"result", "./file/"+path.Name())
+				err := cmd.Run()
+				if err != nil {
+					fmt.Println("failed to run cmd %v", err)
+				}
 			}
 		}
 	}
